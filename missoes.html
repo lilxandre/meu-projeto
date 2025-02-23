@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Missões - LIL Xandre</title>
+  <style>
+    /* RESET e Estilos Básicos */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      color: #333;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 2rem;
+      color: #005CFF;
+    }
+    /* Painel de Filtros */
+    .filter-panel {
+      background: #ddd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .filter-panel div {
+      margin: 5px;
+    }
+    .filter-panel label {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    .filter-panel input, .filter-panel select {
+      padding: 6px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+    }
+    /* Removi o botão de consultar, pois a filtragem ocorre automaticamente */
+    <!-- Se preferir manter o botão, basta descomentar a linha abaixo -->
+    .filter-panel button {
+      padding: 8px 15px;
+      background: #005CFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .filter-panel button:hover {
+      background: #0040b3;
+    }
+    
+    /* Área de Resultados */
+    .results {
+      background: #eee;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .results h2 {
+      margin-bottom: 10px;
+    }
+    .results ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .results li {
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    /* Classes para resultados */
+    .used {
+      color: red;
+      font-weight: bold;
+    }
+    .available {
+      color: green;
+      font-weight: bold;
+    }
+    .no-result {
+      color: #900;
+      font-style: italic;
+    }
+    /* Tabela Completa */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    table thead {
+      background: #ccc;
+    }
+    table tbody tr:nth-child(odd) {
+      background: #f9f9f9;
+    }
+    /* Linha marcada como usada (ocupada) na tabela */
+    .occupied {
+      background: #ffd6d6 !important;
+      color: #a00;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Missões - LIL Xandre</h1>
+    </header>
+    
+    <!-- Painel de Filtros -->
+    <section class="filter-panel">
+      <div>
+        <label for="numeroBusca">Nº da Missão:</label>
+        <input type="text" id="numeroBusca" placeholder="Ex: 005" oninput="consultar()">
+      </div>
+      <div>
+        <label for="dataBusca">Data Início:</label>
+        <input type="date" id="dataBusca" oninput="consultar()">
+      </div>
+      <div>
+        <label for="secaoBusca">Seção:</label>
+        <select id="secaoBusca" onchange="consultar()">
+          <option value="">-- Selecione --</option>
+        </select>
+      </div>
+      <div>
+        <label for="localBusca">Local:</label>
+        <select id="localBusca" onchange="consultar()">
+          <option value="">-- Selecione --</option>
+        </select>
+      </div>
+      <div>
+        <label for="somaBusca">SOMA:</label>
+        <input type="text" id="somaBusca" placeholder="Ex: R$ 2.007,50" oninput="consultar()">
+      </div>
+      <!-- Se desejar manter um botão, descomente a linha abaixo:
+      <div>
+        <button onclick="consultar()">Consultar</button>
+      </div>
+      -->
+    </section>
+    
+    <!-- Área de Resultados (Exatos e Sugestões Aproximadas) -->
+    <section class="results" id="results"></section>
+    
+    <!-- Tabela Completa das Missões -->
+    <h2>Tabela Completa das Missões</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nº</th>
+          <th>POSTO/GRAD</th>
+          <th>NOME</th>
+          <th>CPF</th>
+          <th>DATA INÍCIO</th>
+          <th>DATA FIM</th>
+          <th>SEÇÃO</th>
+          <th>LOCAL</th>
+          <th>GASTO (DIÁRIAS)</th>
+          <th>SOMA</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-linhas">
+        <!-- Será preenchido via JavaScript -->
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Importa o arquivo dados.js com o array MISSOES -->
+  <script src="dados.js"></script>
+  
+  <script>
+    // Inicializa a propriedade "usada" para cada item (se não estiver definida)
+    function inicializarUsadas() {
+      MISSOES.forEach(item => {
+        if (item.usada === undefined) {
+          item.usada = false;
+        }
+      });
+    }
+    
+    // Popula os dropdowns de Seção e Local com valores únicos
+    function populateDropdowns() {
+      const secaoSelect = document.getElementById('secaoBusca');
+      const localSelect = document.getElementById('localBusca');
+      const secoes = new Set();
+      const locais = new Set();
+      
+      MISSOES.forEach(item => {
+        if(item["DIVISÃO/\nASSESS"]) {
+          secoes.add(item["DIVISÃO/\nASSESS"].trim());
+        }
+        if(item["LOCAL\n(CIDADE/UF)"]) {
+          locais.add(item["LOCAL\n(CIDADE/UF)"].trim());
+        }
+      });
+      
+      secoes.forEach(sec => {
+        const opt = document.createElement('option');
+        opt.value = sec;
+        opt.textContent = sec;
+        secaoSelect.appendChild(opt);
+      });
+      
+      locais.forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc;
+        opt.textContent = loc;
+        localSelect.appendChild(opt);
+      });
+    }
+    
+    // Exibe a tabela completa com todas as missões
+    function exibirTabelaCompleta() {
+      const corpo = document.getElementById('tabela-linhas');
+      let html = '';
+      MISSOES.forEach((linha, index) => {
+        const isUsed = !!linha.usada;
+        html += `<tr id="linha-${index}" class="${isUsed ? 'occupied' : ''}">
+          <td onclick="filtrarPorMissao('${linha["N.º"]}')" style="cursor:pointer;">
+            ${linha["N.º"] || ''}
+          </td>
+          <td>${linha["POSTO/\nASSEGRAD"] || linha["POSTO/GRAD"] || 'N/A'}</td>
+          <td>${linha["NOME DO MILITAR OU CIVIL DESIGNADO"] || ''}</td>
+          <td>${linha["CPF"] || ''}</td>
+          <td>${linha["DATA INÍCIO"] || ''}</td>
+          <td>${linha["DATA FIM"] || ''}</td>
+          <td>${linha["DIVISÃO/\nASSESS"] || ''}</td>
+          <td>${linha["LOCAL\n(CIDADE/UF)"] || ''}</td>
+          <td>${linha["GASTO (DIÁRIAS)"] || ''}</td>
+          <td>${linha["SOMA"] || ''}</td>
+        </tr>`;
+      });
+      corpo.innerHTML = html;
+    }
+    
+    // Filtragem exata
+    function filtrarExato(item, numeroBusca, dataBusca, secaoBusca, localBusca, somaBusca) {
+      if (numeroBusca && item["N.º"] !== numeroBusca) return false;
+      if (dataBusca && converterData(item["DATA INÍCIO"]) !== dataBusca) return false;
+      if (secaoBusca) {
+        const sec = item["DIVISÃO/\nASSESS"] ? item["DIVISÃO/\nASSESS"].toUpperCase() : "";
+        if (!sec.includes(secaoBusca)) return false;
+      }
+      if (localBusca) {
+        const loc = item["LOCAL\n(CIDADE/UF)"] ? item["LOCAL\n(CIDADE/UF)"].toUpperCase() : "";
+        if (!loc.includes(localBusca)) return false;
+      }
+      if (somaBusca && item["SOMA"] !== somaBusca) return false;
+      return true;
+    }
+    
+    // Filtragem aproximada (data dentro de ±7 dias)
+    function filtrarAproximado(item, dataBusca, secaoBusca, localBusca, somaBusca) {
+      const dtItemStr = converterData(item["DATA INÍCIO"]);
+      if (!dtItemStr) return false;
+      const dtBusca = new Date(dataBusca);
+      const dtItem = new Date(dtItemStr);
+      const diff = Math.abs((dtItem - dtBusca) / (1000 * 60 * 60 * 24));
+      if (diff > 7) return false;
+      if (secaoBusca) {
+        const sec = item["DIVISÃO/\nASSESS"] ? item["DIVISÃO/\nASSESS"].toUpperCase() : "";
+        if (!sec.includes(secaoBusca)) return false;
+      }
+      if (localBusca) {
+        const loc = item["LOCAL\n(CIDADE/UF)"] ? item["LOCAL\n(CIDADE/UF)"].toUpperCase() : "";
+        if (!loc.includes(localBusca)) return false;
+      }
+      if (somaBusca && item["SOMA"] !== somaBusca) return false;
+      return true;
+    }
+    
+    // Função que exibe os resultados de filtragem
+    function exibirResultados(exatos, aprox) {
+      const divRes = document.getElementById('results');
+      let html = '';
+      if (exatos.length === 0 && aprox.length === 0) {
+        html = "<p class='no-result'>Nenhum resultado encontrado para esses filtros.</p>";
+      } else {
+        if (exatos.length > 0) {
+          html += "<h2>Resultados Exatos</h2><ul>";
+          exatos.forEach(item => {
+            // Mostra o item mesmo que usado; usa "used" ou "available"
+            const classe = item.usada ? 'used' : 'available';
+            html += `<li class="${classe}" onclick="filtrarPorMissao('${item["N.º"]}')">
+              Nº ${item["N.º"]} | ${item["NOME DO MILITAR OU CIVIL DESIGNADO"] || ''} | Seção: ${item["DIVISÃO/\nASSESS"] || ''} | Data: ${item["DATA INÍCIO"]} a ${item["DATA FIM"]}
+            </li>`;
+          });
+          html += "</ul>";
+        }
+        if (aprox.length > 0) {
+          html += "<h2>Sugestões Próximas</h2><ul>";
+          aprox.forEach(item => {
+            const classe = item.usada ? 'used' : 'available';
+            html += `<li class="${classe}" onclick="filtrarPorMissao('${item["N.º"]}')">
+              Nº ${item["N.º"]} | ${item["NOME DO MILITAR OU CIVIL DESIGNADO"] || ''} | Seção: ${item["DIVISÃO/\nASSESS"] || ''} | Data: ${item["DATA INÍCIO"]} a ${item["DATA FIM"]}
+            </li>`;
+          });
+          html += "</ul>";
+        }
+      }
+      divRes.innerHTML = html;
+    }
+    
+    // Ao clicar em uma missão no resultado, filtra a tabela para mostrar todas as entradas daquela missão (independentemente de "usada")
+    function filtrarPorMissao(numero) {
+      const linhas = MISSOES.filter(el => el["N.º"] === numero);
+      if (linhas.length === 0) {
+        alert("Missão não encontrada.");
+        return;
+      }
+      // Atualiza a tabela para mostrar todas as entradas da missão
+      const corpo = document.getElementById('tabela-linhas');
+      let html = '';
+      linhas.forEach((linha, idx) => {
+        const classe = linha.usada ? 'occupied' : 'available';
+        html += `<tr id="linha-${numero}-${idx}" class="${classe}">
+          <td onclick="confirmarUso('${numero}')" style="cursor:pointer;">${linha["N.º"] || ''}</td>
+          <td>${linha["POSTO/\nASSEGRAD"] || linha["POSTO/GRAD"] || 'N/A'}</td>
+          <td>${linha["NOME DO MILITAR OU CIVIL DESIGNADO"] || ''}</td>
+          <td>${linha["CPF"] || ''}</td>
+          <td>${linha["DATA INÍCIO"] || ''}</td>
+          <td>${linha["DATA FIM"] || ''}</td>
+          <td>${linha["DIVISÃO/\nASSESS"] || ''}</td>
+          <td>${linha["LOCAL\n(CIDADE/UF)"] || ''}</td>
+          <td>${linha["GASTO (DIÁRIAS)"] || ''}</td>
+          <td>${linha["SOMA"] || ''}</td>
+        </tr>`;
+      });
+      corpo.innerHTML = html;
+    }
+    
+    // Ao clicar no número na tabela, confirma (opcional) o uso da missão
+    function confirmarUso(numero) {
+      const linhas = MISSOES.filter(el => el["N.º"] === numero);
+      if (linhas.length === 0) {
+        alert("Missão não encontrada.");
+        return;
+      }
+      // Aqui, mesmo que a missão esteja usada, o usuário pode visualizá-la. Se desejar confirmar o uso (marcar como utilizada)
+      if (!confirm(`Deseja marcar TODAS as entradas da Missão Nº ${numero} como utilizadas? (Caso já estejam utilizadas, essa ação não terá efeito)`)) {
+        return;
+      }
+      linhas.forEach(el => el.usada = true);
+      exibirTabelaCompleta();
+      consultar();
+      alert(`Missão Nº ${numero} foi marcada como utilizada.`);
+    }
+    
+    // Converte data do formato dd/mm/yyyy para yyyy-mm-dd
+    function converterData(dataTexto) {
+      if (!dataTexto) return '';
+      const partes = dataTexto.split('/');
+      if (partes.length !== 3) return dataTexto;
+      const [dia, mes, ano] = partes;
+      return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+    }
+    
+    // Inicializa: garante que todos os itens tenham "usada" definida, popula dropdowns e exibe a tabela completa
+    window.addEventListener('DOMContentLoaded', () => {
+      MISSOES.forEach(item => {
+        if (item.usada === undefined) item.usada = false;
+      });
+      populateDropdowns();
+      exibirTabelaCompleta();
+    });
+    
+    // Atualiza a filtragem automaticamente a cada mudança (já configurado nos oninput e onchange)
+    function consultar() {
+      const numeroBusca = document.getElementById('numeroBusca').value.trim();
+      const dataBusca = document.getElementById('dataBusca').value;
+      const secaoBusca = document.getElementById('secaoBusca').value.trim().toUpperCase();
+      const localBusca = document.getElementById('localBusca').value.trim().toUpperCase();
+      const somaBusca = document.getElementById('somaBusca').value.trim();
+      
+      let resultadosExatos = MISSOES.filter(item => filtrarExato(item, numeroBusca, dataBusca, secaoBusca, localBusca, somaBusca));
+      
+      let resultadosAprox = [];
+      if (dataBusca) {
+        resultadosAprox = MISSOES.filter(item => filtrarAproximado(item, dataBusca, secaoBusca, localBusca, somaBusca));
+        // Remover duplicatas dos resultados exatos
+        resultadosAprox = resultadosAprox.filter(item => !resultadosExatos.includes(item));
+      }
+      
+      exibirResultados(resultadosExatos, resultadosAprox);
+    }
+  </script>
+</body>
+</html>
